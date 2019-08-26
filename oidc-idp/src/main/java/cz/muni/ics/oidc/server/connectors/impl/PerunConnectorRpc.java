@@ -80,12 +80,12 @@ public class PerunConnectorRpc implements PerunConnector {
 	}
 
 	public void setOidcClientIdAttr(String oidcClientIdAttr) {
-		log.trace("setting OIDCClientID attr name");
+		log.trace("setting OIDCClientID attr shortName");
 		this.oidcClientIdAttr = oidcClientIdAttr;
 	}
 
 	public void setOidcCheckMembershipAttr(String oidcCheckMembershipAttr) {
-		log.trace("setting OIDCCheckGroupMembership attr name");
+		log.trace("setting OIDCCheckGroupMembership attr shortName");
 		this.oidcCheckMembershipAttr = oidcCheckMembershipAttr;
 	}
 
@@ -298,7 +298,7 @@ public class PerunConnectorRpc implements PerunConnector {
 				String login = ues.path("login").asText();
 				long asserted = Timestamp.valueOf(ues.path("lastAccess").asText()).getTime() / 1000L;
 				String name = extSource.path("name").asText();
-				log.trace("ues id={},name={},login={}", id, name, login);
+				log.trace("ues id={},shortName={},login={}", id, name, login);
 				PerunAttribute perunAttribute = Mapper.mapAttribute(makeRpcCall("/attributesManager/getAttribute", ImmutableMap.of("userExtSource", id, "attributeName", attributeName)));
 				String value = perunAttribute.valueAsString();
 				if (value != null) {
@@ -333,6 +333,23 @@ public class PerunConnectorRpc implements PerunConnector {
 			}
 		}
 		return affiliations;
+	}
+
+	@Override
+	public PerunAttribute getEntitylessAttribute(String attributeName) {
+		log.trace("getEntitylessAttribute({})", attributeName);
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("attrName", attributeName);
+		return Mapper.mapAttribute(makeRpcCall("/attributesManager/getEntitylessAttributes", map));
+	}
+
+	@Override
+	public PerunAttribute getVoAttribute(Long voId, String attributeName) {
+		log.trace("getVoAttribute(voId:{}, attributeName:{})",voId, attributeName);
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("vo", voId);
+		map.put("attrName", attributeName);
+		return Mapper.mapAttribute(makeRpcCall("/attributesManager/getAttribute", map));
 	}
 
 	public PerunAttribute getFacilityAttribute(Facility facility, String attributeName) {
@@ -370,7 +387,7 @@ public class PerunConnectorRpc implements PerunConnector {
 		return vos;
 	}
 
-	private Vo getVoByShortName(String shortName) {
+	public Vo getVoByShortName(String shortName) {
 		log.trace("getVoByShortName({})", shortName);
 		Map<String, Object> params = new LinkedHashMap<>();
 		params.put("shortName", shortName);

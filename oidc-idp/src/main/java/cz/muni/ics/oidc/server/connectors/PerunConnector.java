@@ -118,4 +118,26 @@ public interface PerunConnector {
 	 * @return list of values of attribute affiliation
 	 */
 	List<Affiliation> getGroupAffiliations(Long userId);
+
+	/**
+	 * Gets the entityless attribute.
+	 * @param attributeName full name of attribute
+	 * @return attribute
+	 */
+	PerunAttribute getEntitylessAttribute(String attributeName);
+
+	/**
+	 * Gets the VO attribute
+	 * @param voId Id of VO
+	 * @param attributeName fullname of attribute
+	 * @return Attribute
+	 */
+	PerunAttribute getVoAttribute(Long voId, String attributeName);
+
+	/**
+	 * Returns the VO with shortName
+	 * @param shortName shortname of VO
+	 * @return Vo
+	 */
+	Vo getVoByShortName(String shortName);
 }

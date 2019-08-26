@@ -79,7 +79,7 @@ public class ProxyStatisticsFilter extends GenericFilterBean {
 
 	public void setIdpEntityIdAttributeName(String idpEntityIdAttributeName) {
 		this.idpEntityIdAttributeName = idpEntityIdAttributeName;
-	}
+}
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)

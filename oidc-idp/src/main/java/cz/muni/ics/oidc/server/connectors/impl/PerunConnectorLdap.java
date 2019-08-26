@@ -231,4 +231,22 @@ public class PerunConnectorLdap implements PerunConnector, DisposableBean {
 		//TODO: implement
 		return fallbackConnector.getGroupAffiliations(userId);
 	}
+
+	@Override
+	public PerunAttribute getEntitylessAttribute(String attributeName) {
+		//TODO: implement
+		return fallbackConnector.getEntitylessAttribute(attributeName);
+	}
+
+	@Override
+	public PerunAttribute getVoAttribute(Long voId, String attributeName) {
+		//TODO: implement
+		return fallbackConnector.getVoAttribute(voId, attributeName);
+	}
+
+	@Override
+	public Vo getVoByShortName(String shortName) {
+		//TODO: implement
+		return fallbackConnector.getVoByShortName(shortName);
+	}
 }

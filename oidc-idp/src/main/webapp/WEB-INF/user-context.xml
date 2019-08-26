@@ -58,6 +58,11 @@
 				<prop key="facility.attrs.clientId">urn:perun:facility:attribute-def:def:OIDCClientID</prop>
 				<prop key="facility.attrs.wayfFilter">urn:perun:facility:attribute-def:def:wayfFilter</prop>
 				<prop key="facility.attrs.wayfEFilter">urn:perun:facility:attribute-def:def:wayfEFilter</prop>
+				<prop key="forceAup.attrs.facilityRequstedAups">urn:perun:facility:attribute-def:def:reqAups</prop>
+				<prop key="forceAup.attrs.facilityVoShortNames">urn:perun:facility:attribute-def:virt:voShortNames</prop>
+				<prop key="forceAup.attrs.orgAupsAttrName">urn:perun:entityless:attribute-def:def:orgAups</prop>
+				<prop key="forceAup.attrs.userAupsAttrName">urn:perun:user:attribute-def:def:aups</prop>
+				<prop key="forceAup.attrs.voAupAttrName">urn:perun:vo:attribute-def:def:aup</prop>
 				<!-- for LDAP
 				<prop key="attribute.openid.sub">login;x-ns-einfraid-persistent-shadow</prop>
 				<prop key="attribute.profile.preferred_username">login;x-ns-einfra</prop>
@@ -164,7 +169,8 @@
 		<security:intercept-url pattern="/**" access="permitAll"/>
 		<security:custom-filter ref="perunAuthenticationFilter" after="PRE_AUTH_FILTER"/>
 		<security:custom-filter ref="perunAuthorizationFilter" before="BASIC_AUTH_FILTER"/>
-		<security:custom-filter ref="proxyStatisticsFilter" after="BASIC_AUTH_FILTER"/>
+		<security:custom-filter ref="perunForceAupFilter" after="BASIC_AUTH_FILTER"/>
+<!--		<security:custom-filter ref="proxyStatisticsFilter" after="BASIC_AUTH_FILTER"/>-->
 	</security:http>
 
 	<security:authentication-manager id="authenticationManager">
@@ -195,7 +201,14 @@
 		<property name="authenticationManager" ref="authenticationManager"/>
 		<property name="authenticationSuccessHandler" ref="perunTimeStamper"/>
 	</bean>
-
+	<!-- -->
+	<bean id="perunForceAupFilter" class="cz.muni.ics.oidc.server.filters.ForceAupFilter">
+		<property name="perunFacilityRequestedAupsAttrName" ref="${forceAup.attrs.facilityRequstedAups}"/>
+		<property name="perunFacilityVoShortNamesAttrName" ref="${forceAup.attrs.facilityVoShortNames}"/>
+		<property name="perunOrgAupsAttrName" ref="${forceAup.attrs.orgAupsAttrName}"/>
+		<property name="perunUserAupsAttrName" ref="${forceAup.attrs.userAupsAttrName}"/>
+		<property name="perunVoAupAttrName" ref="${forceAup.attrs.voAupAttrName}"/>
+	</bean>
 	<!-- Save statistics about logins -->
 	<bean id="proxyStatisticsFilter" class="cz.muni.ics.oidc.server.filters.ProxyStatisticsFilter">
 		<property name="statisticsTableName" value="${stats.tableName.statistics}"/>
