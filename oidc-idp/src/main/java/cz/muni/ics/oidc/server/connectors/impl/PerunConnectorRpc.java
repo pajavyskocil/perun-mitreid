@@ -453,6 +453,9 @@ public class PerunConnectorRpc implements PerunConnector {
 		for (Resource resource : resources) {
 			PerunAttribute mappedAttribute = getAttribute("resource", resource.getId(), capabilitiesAttrName);
 			List<String> resourceCapabilities = mappedAttribute.valueAsList();
+			if (resourceCapabilities == null || resourceCapabilities.size() == 0) {
+				continue;
+			}
 			List<Group> groups = getAssignedGroups(resource.getId());
 
 			for (Group group : groups) {
