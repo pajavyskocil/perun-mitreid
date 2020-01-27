@@ -9,6 +9,7 @@ import cz.muni.ics.oidc.server.filters.FiltersUtils;
 import cz.muni.ics.oidc.server.filters.PerunFilterConstants;
 import cz.muni.ics.oidc.server.filters.PerunRequestFilter;
 import cz.muni.ics.oidc.server.filters.PerunRequestFilterParams;
+import org.mariadb.jdbc.internal.com.read.resultset.SelectResultSet;
 import org.mitre.oauth2.model.ClientDetailsEntity;
 import org.mitre.oauth2.service.ClientDetailsEntityService;
 import org.slf4j.Logger;
@@ -25,6 +26,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
@@ -59,16 +61,12 @@ public class ProxyStatisticsFilter extends PerunRequestFilter {
 	private static final String STATISTICS_TABLE_NAME = "statisticsTableName";
 	private static final String IDENTITY_PROVIDERS_MAP_TABLE_NAME = "identityProvidersMapTableName";
 	private static final String SERVICE_PROVIDERS_MAP_TABLE_NAME = "serviceProvidersMapTableName";
-	private static final String DETAILED_STATISTICS_TABLE_NAME = "detailedStatisticsTableName";
-	private static final String DETAILED_STATISTICS_ENABLED = "detailedStatisticsEnabled";
 
 	private final String idpNameAttributeName;
 	private final String idpEntityIdAttributeName;
 	private final String statisticsTableName;
 	private final String identityProvidersMapTableName;
 	private final String serviceProvidersMapTableName;
-	private final String detailedStatisticsTableName;
-	private final boolean detailedStatisticsEnabled;
 	/* END OF CONFIGURATION OPTIONS */
 
 	private final RequestMatcher requestMatcher = new AntPathRequestMatcher(PerunFilterConstants.AUTHORIZE_REQ_PATTERN);
@@ -93,12 +91,7 @@ public class ProxyStatisticsFilter extends PerunRequestFilter {
 		this.statisticsTableName = params.getProperty(STATISTICS_TABLE_NAME);
 		this.identityProvidersMapTableName = params.getProperty(IDENTITY_PROVIDERS_MAP_TABLE_NAME);
 		this.serviceProvidersMapTableName = params.getProperty(SERVICE_PROVIDERS_MAP_TABLE_NAME);
-		this.detailedStatisticsTableName = params.getProperty(DETAILED_STATISTICS_TABLE_NAME);
-		if (params.hasProperty(DETAILED_STATISTICS_ENABLED)) {
-			this.detailedStatisticsEnabled = Boolean.parseBoolean(params.getProperty(DETAILED_STATISTICS_ENABLED));
-		} else {
-			this.detailedStatisticsEnabled = false;
-		}
+
 	}
 
 	@Override
@@ -136,8 +129,69 @@ public class ProxyStatisticsFilter extends PerunRequestFilter {
 		return true;
 	}
 
-	private void insertLogin(String idpEntityId, String idpName, String spIdentifier, String spName) {
+	private void insertLogin(String idpEntityId, String idpName, String spIdentifier, String spName, String userId) {
 		LocalDate date = LocalDate.now();
+
+		if (userId == null || userId.trim().isEmpty()) {
+			log.debug("UserId is null or empty!");
+			// TODO
+		}
+		int idPId;
+		int spId;
+
+		String getIdPIdQuery = "SELECT * FROM " + identityProvidersMapTableName + " WHERE identifier='" + idpEntityId + "'";
+		String getSpIdQuery = "SELECT * FROM " +  serviceProvidersMapTableName + " WHERE identifier='" + spIdentifier + "'";
+
+		log.debug(getIdPIdQuery);
+		log.debug(getSpIdQuery);
+
+		try (Connection connection = mitreIdStats.getConnection()) {
+			try (PreparedStatement preparedStatement = connection.prepareStatement(getIdPIdQuery)) {
+				ResultSet resultSet = preparedStatement.executeQuery();
+				resultSet.last();
+				int size = resultSet.getRow();
+				resultSet.first();
+				if (size == 0) {
+					// INSERT DATA
+					log.debug("There is no item in database with identifier {}.", idpEntityId);
+				} else if (size > 0) {
+					if (size > 1) {
+						log.error("Database return more result for query {}! Getting first value", getIdPIdQuery);
+					}
+					idPId = resultSet.getInt("idpId");
+					log.debug("Get idpID: {}", idPId);
+					if (!idpName.equals(resultSet.getString("name"))) {
+						// DO UPDATE
+					}
+				}
+			}
+
+			try (PreparedStatement preparedStatement = connection.prepareStatement(getSpIdQuery)) {
+				ResultSet resultSet = preparedStatement.executeQuery();
+				resultSet.last();
+				int size = resultSet.getRow();
+				resultSet.first();
+				if (size == 0) {
+					// INSERT DATA
+					log.debug("There is no item in database with identifier {}.", spIdentifier);
+				} else if (size > 0) {
+					if (size > 1) {
+						log.error("Database return more result for query {}! Getting first value", getSpIdQuery);
+					}
+					spId = resultSet.getInt("idpId");
+					log.debug("Get spId: {}", spId);
+					if (!spIdentifier.equals(resultSet.getString("name"))) {
+						// DO UPDATE
+					}
+				}
+			}
+
+			log.debug("The login log was successfully stored into database: ({},{},{},{})", idpEntityId, idpName, spIdentifier, spName);
+		} catch (SQLException ex) {
+			log.warn("Statistics weren't updated due to SQLException.");
+			log.error("Caught SQLException", ex);
+		}
+
 
 		String queryStats = "INSERT INTO " + statisticsTableName + "(year, month, day, sourceIdp, service, count)" +
 				" VALUES(?,?,?,?,?,'1') ON DUPLICATE KEY UPDATE count = count + 1";
@@ -148,63 +202,62 @@ public class ProxyStatisticsFilter extends PerunRequestFilter {
 		String queryServiceMap = "INSERT INTO " + serviceProvidersMapTableName + "(identifier, name)" +
 				" VALUES (?, ?) ON DUPLICATE KEY UPDATE name = ?";
 
-		try (Connection c = mitreIdStats.getConnection()) {
-			try (PreparedStatement preparedStatement = c.prepareStatement(queryStats)) {
-				preparedStatement.setInt(1, date.getYear());
-				preparedStatement.setInt(2, date.getMonthValue());
-				preparedStatement.setInt(3, date.getDayOfMonth());
-				preparedStatement.setString(4, idpEntityId);
-				preparedStatement.setString(5, spIdentifier);
-				preparedStatement.execute();
-			}
-			if (!Strings.isNullOrEmpty(idpName)) {
-				try (PreparedStatement preparedStatement = c.prepareStatement(queryIdPMap)) {
-					preparedStatement.setString(1, idpEntityId);
-					preparedStatement.setString(2, idpName);
-					preparedStatement.setString(3, idpName);
-					preparedStatement.execute();
-				}
-			}
-			if (!Strings.isNullOrEmpty(spName)) {
-				try (PreparedStatement preparedStatement = c.prepareStatement(queryServiceMap)) {
-					preparedStatement.setString(1, spIdentifier);
-					preparedStatement.setString(2, spName);
-					preparedStatement.setString(3, spName);
-					preparedStatement.execute();
-				}
-			}
-			log.debug("The login log was successfully stored into database: ({},{},{},{})", idpEntityId, idpName, spIdentifier, spName);
-		} catch (SQLException ex) {
-			log.warn("Statistics weren't updated due to SQLException.");
-			log.error("Caught SQLException", ex);
-		}
+//		try (Connection c = mitreIdStats.getConnection()) {
+//			try (PreparedStatement preparedStatement = c.prepareStatement(queryStats)) {
+//				preparedStatement.setInt(1, date.getYear());
+//				preparedStatement.setInt(2, date.getMonthValue());
+//				preparedStatement.setInt(3, date.getDayOfMonth());
+//				preparedStatement.setString(4, idpEntityId);
+//				preparedStatement.setString(5, spIdentifier);
+//				preparedStatement.execute();
+//			}
+//			if (!Strings.isNullOrEmpty(idpName)) {
+//				try (PreparedStatement preparedStatement = c.prepareStatement(queryIdPMap)) {
+//					preparedStatement.setString(1, idpEntityId);
+//					preparedStatement.setString(2, idpName);
+//					preparedStatement.setString(3, idpName);
+//					preparedStatement.execute();
+//				}
+//			}
+//			if (!Strings.isNullOrEmpty(spName)) {
+//				try (PreparedStatement preparedStatement = c.prepareStatement(queryServiceMap)) {
+//					preparedStatement.setString(1, spIdentifier);
+//					preparedStatement.setString(2, spName);
+//					preparedStatement.setString(3, spName);
+//					preparedStatement.execute();
+//				}
+//			}
+//			log.debug("The login log was successfully stored into database: ({},{},{},{})", idpEntityId, idpName, spIdentifier, spName);
+//		} catch (SQLException ex) {
+//			log.warn("Statistics weren't updated due to SQLException.");
+//			log.error("Caught SQLException", ex);
+//		}
 	}
 
-	private void insertLogin(String idpEntityId, String idpName, String spIdentifier, String spName, String userId) {
-		insertLogin(idpEntityId, idpName, spIdentifier, spName);
-
-		if (detailedStatisticsEnabled && userId != null && !userId.trim().isEmpty()) {
-			String detailedStats = "INSERT INTO " + detailedStatisticsTableName + "(year, month, day, sourceIdp, service, user, count)" +
-					" VALUES(?,?,?,?,?,?,'1') ON DUPLICATE KEY UPDATE count = count + 1";
-
-			LocalDate date = LocalDate.now();
-			try (Connection c = mitreIdStats.getConnection()) {
-				try (PreparedStatement preparedStatement = c.prepareStatement(detailedStats)) {
-					preparedStatement.setInt(1, date.getYear());
-					preparedStatement.setInt(2, date.getMonthValue());
-					preparedStatement.setInt(3, date.getDayOfMonth());
-					preparedStatement.setString(4, idpEntityId);
-					preparedStatement.setString(5, spIdentifier);
-					preparedStatement.setString(6, userId);
-					preparedStatement.execute();
-				}
-				log.debug("The login log was successfully stored into database: ({},{},{},{},{})", idpEntityId, idpName, spIdentifier, spName, userId);
-			} catch (SQLException ex) {
-				log.warn("Detailed statistics weren't updated due to SQLException.");
-				log.error("Caught SQLException", ex);
-			}
-		}
-	}
+//	private void insertLoginOld(String idpEntityId, String idpName, String spIdentifier, String spName, String userId) {
+//
+//		if (detailedStatisticsEnabled && userId != null && !userId.trim().isEmpty()) {
+//			String detailedStats = "INSERT INTO " + detailedStatisticsTableName + "(year, month, day, sourceIdp, service, user, count)" +
+//					" VALUES(?,?,?,?,?,?,'1') ON DUPLICATE KEY UPDATE count = count + 1";
+//
+//			LocalDate date = LocalDate.now();
+//			try (Connection c = mitreIdStats.getConnection()) {
+//				try (PreparedStatement preparedStatement = c.prepareStatement(detailedStats)) {
+//					preparedStatement.setInt(1, date.getYear());
+//					preparedStatement.setInt(2, date.getMonthValue());
+//					preparedStatement.setInt(3, date.getDayOfMonth());
+//					preparedStatement.setString(4, idpEntityId);
+//					preparedStatement.setString(5, spIdentifier);
+//					preparedStatement.setString(6, userId);
+//					preparedStatement.execute();
+//				}
+//				log.debug("The login log was successfully stored into database: ({},{},{},{},{})", idpEntityId, idpName, spIdentifier, spName, userId);
+//			} catch (SQLException ex) {
+//				log.warn("Detailed statistics weren't updated due to SQLException.");
+//				log.error("Caught SQLException", ex);
+//			}
+//		}
+//	}
 
 	private String changeEncodingOfParam(String original, Charset source, Charset destination) {
 		if (original != null && !original.isEmpty()) {

@@ -104,11 +104,9 @@
 				<prop key="filter.stats.class">cz.muni.ics.oidc.server.filters.impl.ProxyStatisticsFilter</prop>
 				<prop key="filter.stats.idpNameAttributeName">sourceIdPName</prop>
 				<prop key="filter.stats.idpEntityIdAttributeName">sourceIdPEntityID</prop>
-				<prop key="filter.stats.statisticsTableName">statistics</prop>
-				<prop key="filter.stats.identityProvidersMapTableName">identityProvidersMap</prop>
-				<prop key="filter.stats.serviceProvidersMapTableName">serviceProvidersMap</prop>
-				<prop key="filter.stats.detailedStatisticsTableName">detailedStatistics</prop>
-				<prop key="filter.stats.detailedStatisticsEnabled">false</prop>
+				<prop key="filter.stats.statisticsTableName">statistics_per_user</prop>
+				<prop key="filter.stats.identityProvidersMapTableName">statistics_idp</prop>
+				<prop key="filter.stats.serviceProvidersMapTableName">statistics_sp</prop>
 			</props>
 		</property>
 	</bean>
