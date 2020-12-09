@@ -18,6 +18,7 @@ public class Group extends Model {
 	private String name;
 	private String description;
 	private String uniqueGroupName; // voShortName + ":" + group name
+	private String uuid;
 	private Long voId;
 
 	private Map<String, JsonNode> attributes = new LinkedHashMap<>();
@@ -25,12 +26,13 @@ public class Group extends Model {
 	public Group() {
 	}
 
-	public Group(Long id, Long parentGroupId, String name, String description, String uniqueGroupName, Long voId) {
+	public Group(Long id, Long parentGroupId, String name, String description, String uniqueGroupName, String uuid, Long voId) {
 		super(id);
 		this.setParentGroupId(parentGroupId);
 		this.setName(name);
 		this.setDescription(description);
 		this.setUniqueGroupName(uniqueGroupName);
+		this.setUuid(uuid);
 		this.setVoId(voId);
 	}
 
@@ -68,6 +70,19 @@ public class Group extends Model {
 
 	public void setUniqueGroupName(String uniqueGroupName) {
 		this.uniqueGroupName = uniqueGroupName;
+	}
+
+	public String getUuid() {
+		return uuid;
+	}
+
+	public void setUuid(String uuid) {
+		if (Strings.isNullOrEmpty(uuid)) {
+//			Hack
+			uuid = this.name;
+		}
+
+		this.uuid = uuid;
 	}
 
 	public Long getVoId() {

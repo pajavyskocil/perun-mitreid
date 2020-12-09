@@ -521,7 +521,7 @@ public class PerunAdapterLdap extends PerunAdapterWithMappingServices implements
 					parentGroupId = Long.valueOf(e.get(PERUN_PARENT_GROUP_ID).getString());
 				}
 
-				return new Group(id, parentGroupId, name, description, uniqueName, voId);
+				return new Group(id, parentGroupId, name, description, uniqueName,null, voId);
 			};
 
 			result = connectorLdap.search(null, filter, SearchScope.SUBTREE, attributes, mapper);

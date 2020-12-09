@@ -61,9 +61,10 @@ public class RpcMapper {
 		Long parentGroupId = jsonNode.get("parentGroupId").asLong();
 		String name = jsonNode.get("name").asText();
 		String description = jsonNode.get("description").asText();
+		String uuid = jsonNode.get("uuid").asText();
 		Long voId = jsonNode.get("voId").asLong();
 
-		return new Group(id, parentGroupId, name, description, null, voId);
+		return new Group(id, parentGroupId, name, description, null, uuid,  voId);
 	}
 
 	/**
