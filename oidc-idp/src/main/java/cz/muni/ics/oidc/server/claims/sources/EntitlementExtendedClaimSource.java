@@ -19,9 +19,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 
-public class EntitlementNewSource extends ClaimSource {
+public class EntitlementExtendedClaimSource extends ClaimSource {
 
-    public static final Logger log = LoggerFactory.getLogger(EntitlementNewSource.class);
+    public static final Logger log = LoggerFactory.getLogger(EntitlementExtendedClaimSource.class);
 
     private static final String FORWARDED_ENTITLEMENTS = "forwardedEntitlements";
     private static final String RESOURCE_CAPABILITIES = "resourceCapabilities";
@@ -36,7 +36,7 @@ public class EntitlementNewSource extends ClaimSource {
     private final String prefix;
     private final String authority;
 
-    public EntitlementNewSource(ClaimSourceInitContext ctx) {
+    public EntitlementExtendedClaimSource(ClaimSourceInitContext ctx) {
         super(ctx);
         this.forwardedEntitlements = ClaimUtils.fillStringPropertyOrNoVal(FORWARDED_ENTITLEMENTS, ctx);
         this.resourceCapabilities = ClaimUtils.fillStringPropertyOrNoVal(RESOURCE_CAPABILITIES, ctx);
@@ -87,10 +87,10 @@ public class EntitlementNewSource extends ClaimSource {
             idToNameMap.put(g.getId(), g.getUniqueGroupName());
         });
 
-        if (idToNameMap != null && !idToNameMap.values().isEmpty()) {
-            this.fillEntitlementsFromGroupNames(idToNameMap.values(), entitlements);
-            log.trace("Added entitlements for group names, current value: {}", entitlements);
-        }
+//        if (idToNameMap != null && !idToNameMap.values().isEmpty()) {
+//            this.fillEntitlementsFromGroupNames(idToNameMap.values(), entitlements);
+//            log.trace("Added entitlements for group names, current value: {}", entitlements);
+//        }
 
         if (facility != null) {
             this.fillCapabilities(facility, pctx, idToNameMap, entitlements);
@@ -132,12 +132,17 @@ public class EntitlementNewSource extends ClaimSource {
     private void fillUuidEntitlements(Set<Group> userGroups, Set<String> entitlements) {
         for (Group group : userGroups) {
             log.error(group.getUuid());
-            String uniqueName = group.getUniqueGroupName();
-            if (StringUtils.hasText(uniqueName) && MEMBERS.equals(group.getName())) {
-                uniqueName = uniqueName.replace(":members", "");
+
+            // Add entitlement without displayName with groupPrefix
+            entitlements.add(wrapGroupNameToAARC(group.getUuid()));
+
+
+            // Add entitlement with displayName information
+            String displayName = group.getUniqueGroupName();
+            if (StringUtils.hasText(displayName) && MEMBERS.equals(group.getName())) {
+                displayName = displayName.replace(":members", "");
             }
-            String entitlement = group.getUuid() + "?uniqueName=" + uniqueName;
-            entitlements.add(wrapGroupEntitlementToAARC(entitlement));
+            entitlements.add(wrapGroupEntitlementToAARC(group.getUuid(), displayName));
         }
     }
 
@@ -169,8 +174,8 @@ public class EntitlementNewSource extends ClaimSource {
         return prefix + "group:" + UrlEscapers.urlPathSegmentEscaper().escape(groupName) + "#" + authority;
     }
 
-    private String wrapGroupEntitlementToAARC(String entitlement) {
-        return prefix + "groupUuid:" + UrlEscapers.urlPathSegmentEscaper().escape(entitlement) + "#" + authority;
+    private String wrapGroupEntitlementToAARC(String uuid, String displayName) {
+        return prefix + "groupUuid:" + uuid + ":displayName=" +  UrlEscapers.urlPathSegmentEscaper().escape(displayName) + "#" + authority;
     }
 
     private String wrapCapabilityToAARC(String capability) {
